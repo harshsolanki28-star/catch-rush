@@ -189,10 +189,10 @@ export async function POST(req: Request) {
 
     // Dynamic spicy icebreaker based on telemetry
     const icebreakers = [
-      `Our Catch Rush reflexes just synced at ${computedComp}% with identical dopamine curves! Drinks at the lounge? 🍸`,
-      `We scored within ${computedDelta} points on Catch Rush. That means our attention spans are literally twins. What's your vibe tonight? ✨`,
-      `Neuro-audit verified: ${computedAttention}% focus resonance and ${computedToxicity}% toxic ex resilience. Can't ignore this chemistry. 🥂`,
-      `Our micro-reflexes matched on Catch Rush (${userProfile.score} vs ${bestMatch.score}). Clearly we need to celebrate. 🚀`,
+      `Our Crush Rush reflexes just synced at ${computedComp}% with only a ${computedDelta}-pt score gap! Drinks at the lounge? 🍸`,
+      `We scored within ${computedDelta} points on Crush Rush. That means our attention spans are literally identical. What's your vibe tonight? ✨`,
+      `Crush Rush matched us: ${computedAttention}% focus resonance and ${computedToxicity}% red flag reflex. You can't argue with chemistry. 🥂`,
+      `Our reflex rhythm matched on Crush Rush (${userProfile.score} vs ${bestMatch.score}). Clearly we need to celebrate. 🔥`,
     ];
     const icebreaker = icebreakers[Math.floor(Math.random() * icebreakers.length)];
 

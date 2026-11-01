@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 800" width="450" height="800">
+  <defs>
+    <radialGradient id="topGlow" cx="50%" cy="15%" r="65%">
+      <stop offset="0%" stop-color="#2d1222" />
+      <stop offset="50%" stop-color="#140b17" />
+      <stop offset="100%" stop-color="#09080c" />
+    </radialGradient>
+    <radialGradient id="bokehRose" cx="30%" cy="40%" r="35%">
+      <stop offset="0%" stop-color="rgba(255, 45, 85, 0.12)" />
+      <stop offset="100%" stop-color="rgba(255, 45, 85, 0)" />
+    </radialGradient>
+    <radialGradient id="bokehGold" cx="70%" cy="65%" r="30%">
+      <stop offset="0%" stop-color="rgba(245, 158, 11, 0.08)" />
+      <stop offset="100%" stop-color="rgba(245, 158, 11, 0)" />
+    </radialGradient>
+  </defs>
+
+  <!-- Deep Velvet Night Ground -->
+  <rect width="450" height="800" fill="url(#topGlow)" />
+
+  <!-- Soft Ambient Bokeh Orbs -->
+  <circle cx="135" cy="320" r="160" fill="url(#bokehRose)" />
+  <circle cx="315" cy="520" r="140" fill="url(#bokehGold)" />
+  <circle cx="80" cy="700" r="110" fill="url(#bokehRose)" opacity="0.6" />
+  <circle cx="380" cy="180" r="120" fill="url(#bokehGold)" opacity="0.7" />
+
+  <!-- Subtle Bottom Arena Vignette -->
+  <rect y="680" width="450" height="120" fill="url(#topGlow)" opacity="0.8" />
+  <line x1="20" y1="770" x2="430" y2="770" stroke="rgba(255, 45, 85, 0.15)" stroke-width="1.5" stroke-dasharray="6 4" />
+</svg>

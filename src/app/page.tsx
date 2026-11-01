@@ -113,7 +113,7 @@ export default function Home() {
         attentionSync: 95,
         toxicityResilience: 89,
         impulseSync: 91,
-        icebreaker: `Our Catch Rush reflexes just synced at 92% with identical dopamine curves! Drinks at the lounge? 🍸`,
+        icebreaker: `Our Crush Rush reflexes just synced at 92% with identical rhythm! Drinks at the lounge? 🍸`,
         matchedAt: Date.now(),
       };
       setMatchResult(fallbackResult);
@@ -168,10 +168,10 @@ export default function Home() {
 
         {/* Loading Match Overlay */}
         {isMatching && (
-          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md rounded-2xl animate-fade-in">
-            <div className="w-16 h-16 rounded-full border-4 border-[#ff2d55] border-t-transparent animate-spin mb-4" />
-            <h3 className="text-lg font-black text-white glow-pink">Analyzing Neuro-Reflex Telemetry</h3>
-            <p className="text-xs text-[#ffd700] mt-1 font-medium">Scanning live dater frequency pool...</p>
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md rounded-3xl animate-fade-in p-6 text-center">
+            <div className="w-12 h-12 rounded-full border-3 border-rose-500 border-t-transparent animate-spin mb-4" />
+            <h3 className="text-base font-bold text-white">Finding Your Reflex Match</h3>
+            <p className="text-xs text-zinc-400 mt-1">Comparing reaction rhythm and score spread within 100 points...</p>
           </div>
         )}
 

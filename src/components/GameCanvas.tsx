@@ -17,7 +17,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isMuted, setIsMuted] = useState(sound.isMuted);
   const [isPaused, setIsPaused] = useState(false);
-  const [syncMetric, setSyncMetric] = useState(88);
 
   const gameStateRef = useRef({
     score: 0,
@@ -30,7 +29,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     lateScore: 0,
     closestBombGraze: 999,
     powerUpSpawnTimes: [] as number[],
-    powerUpReactionLatencies: [] as number[],
     pointerJitterEvents: 0,
     pointerMoveFrames: 0,
   });
@@ -57,8 +55,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const WORLD_WIDTH = 450;
     const WORLD_HEIGHT = 800;
-    const BASKET_WIDTH = 110;
-    const BASKET_SPEED = 420;
+    const CATCHER_WIDTH = 115;
+    const CATCHER_SPEED = 430;
     const POINTER_LERP_SPEED = 20;
     const MAX_DELTA_TIME = 0.05;
 
@@ -95,35 +93,29 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     // Assets preloading
     const images: Record<string, HTMLImageElement> = {};
     const assetSources = {
-      background: '/assets/background.png',
-      basket: '/assets/basket.png',
+      background: '/assets/dating_bg.svg',
+      catcher: '/assets/catcher.svg',
       heart: '/assets/heart.png',
       heartEmpty: '/assets/heart-empty.png',
       clock: '/assets/clock.png',
-      star: '/assets/star.png',
-      bomb: '/assets/bomb.png',
-      lightning: '/assets/lightning.png',
-      snowflake: '/assets/snowflake.png',
+      greenFlag: '/assets/green_flag.svg',
+      redFlag: '/assets/red_flag.svg',
+      attraction: '/assets/mutual_attraction.svg',
+      hardToGet: '/assets/hard_to_get.svg',
       sparkleBurst: '/assets/sparkle-burst.png',
       explosion: '/assets/explosion.png',
     };
 
-    let loadedCount = 0;
-    const totalAssets = Object.keys(assetSources).length;
-
     Object.entries(assetSources).forEach(([key, src]) => {
       const img = new Image();
-      img.onload = () => {
-        images[key] = img;
-        loadedCount++;
-      };
       img.src = src;
+      images[key] = img;
     });
 
-    const basket = {
-      x: (WORLD_WIDTH - BASKET_WIDTH) / 2,
+    const catcher = {
+      x: (WORLD_WIDTH - CATCHER_WIDTH) / 2,
       y: 710,
-      height: 60,
+      height: 52,
     };
 
     const keys = { left: false, right: false };
@@ -190,9 +182,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
 
-    // Active entities
     interface ActiveItem {
       name: string;
+      imageKey: string;
       type: 'good' | 'bad' | 'power';
       points: number;
       effect?: string;
@@ -205,7 +197,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       rotation: number;
       rotationSpeed: number;
       wobblePhase: number;
-      spawnedAt: number;
     }
 
     interface VisualFX {
@@ -230,18 +221,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const activeItems: ActiveItem[] = [];
     const visualEffects: VisualFX[] = [];
     const floatingTexts: FloatingText[] = [];
-    const activePowerUps: Record<string, { timer: number; maxDuration: number; icon: string }> = {};
+    const activePowerUps: Record<string, { timer: number; maxDuration: number; iconKey: string }> = {};
 
     let spawnTimer = 0;
     let redFlashTimer = 0;
     let shakeTimer = 0;
-    let basketSquashTimer = 0;
+    let catcherSquashTimer = 0;
 
     const ITEMS_DEF = [
-      { name: 'star', points: 10, type: 'good' as const, width: 56, weight: 70 },
-      { name: 'bomb', points: 0, type: 'bad' as const, width: 60, weight: 30 },
-      { name: 'lightning', points: 0, type: 'power' as const, effect: 'double', duration: 5, width: 58, weight: 6 },
-      { name: 'snowflake', points: 0, type: 'power' as const, effect: 'slow', duration: 4, width: 58, weight: 6 },
+      { name: 'green_flag', imageKey: 'greenFlag', points: 10, type: 'good' as const, width: 56, weight: 70 },
+      { name: 'red_flag', imageKey: 'redFlag', points: 0, type: 'bad' as const, width: 56, weight: 30 },
+      { name: 'attraction', imageKey: 'attraction', points: 0, type: 'power' as const, effect: 'double', duration: 5, width: 58, weight: 6 },
+      { name: 'hard_to_get', imageKey: 'hardToGet', points: 0, type: 'power' as const, effect: 'slow', duration: 4, width: 58, weight: 6 },
     ];
 
     const spawnItem = () => {
@@ -256,11 +247,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         rand -= item.weight;
       }
 
-      const img = images[def.name];
-      const aspect = img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : 1;
-      const height = def.width * aspect;
+      const height = def.width;
       const x = Math.random() * (WORLD_WIDTH - def.width);
-      const speed = 180 + Math.random() * 80;
+      const speed = 190 + Math.random() * 70;
 
       if (def.type === 'power') {
         gameStateRef.current.powerUpSpawnTimes.push(Date.now());
@@ -268,6 +257,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       activeItems.push({
         name: def.name,
+        imageKey: def.imageKey,
         type: def.type,
         points: def.points,
         effect: def.effect,
@@ -278,9 +268,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         height,
         speed,
         rotation: 0,
-        rotationSpeed: def.name === 'star' ? (Math.random() - 0.5) * 2 : 0,
+        rotationSpeed: def.name === 'green_flag' ? (Math.random() - 0.5) * 1.5 : 0,
         wobblePhase: Math.random() * Math.PI * 2,
-        spawnedAt: Date.now(),
       });
     };
 
@@ -293,15 +282,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       lastTime = currentTime;
       if (dt > MAX_DELTA_TIME) dt = MAX_DELTA_TIME;
 
-      // Update if not paused
+      // Update when not paused
       if (!gameStateRef.current.isPaused && !gameStateRef.current.isOver) {
         gameStateRef.current.timeLeft -= dt;
 
         if (shakeTimer > 0) shakeTimer -= dt;
         if (redFlashTimer > 0) redFlashTimer -= dt;
-        if (basketSquashTimer > 0) basketSquashTimer -= dt;
+        if (catcherSquashTimer > 0) catcherSquashTimer -= dt;
 
-        // Telemetry interval tracking
+        // Telemetry tracking
         const elapsedSec = 45 - gameStateRef.current.timeLeft;
         if (elapsedSec <= 15) {
           gameStateRef.current.earlyScore = gameStateRef.current.score;
@@ -328,16 +317,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         const isSlow = !!(activePowerUps['slow'] && activePowerUps['slow'].timer > 0);
         const slowFactor = isSlow ? 0.5 : 1.0;
 
-        // Move basket
-        if (keys.left) basket.x -= BASKET_SPEED * dt;
-        if (keys.right) basket.x += BASKET_SPEED * dt;
+        // Catcher movement
+        if (keys.left) catcher.x -= CATCHER_SPEED * dt;
+        if (keys.right) catcher.x += CATCHER_SPEED * dt;
 
         if (isPointerDown) {
-          const targetX = pointerWorldX - BASKET_WIDTH / 2;
-          basket.x += (targetX - basket.x) * (1 - Math.exp(-POINTER_LERP_SPEED * dt));
+          const targetX = pointerWorldX - CATCHER_WIDTH / 2;
+          catcher.x += (targetX - catcher.x) * (1 - Math.exp(-POINTER_LERP_SPEED * dt));
         }
 
-        basket.x = Math.max(0, Math.min(WORLD_WIDTH - BASKET_WIDTH, basket.x));
+        catcher.x = Math.max(0, Math.min(WORLD_WIDTH - CATCHER_WIDTH, catcher.x));
 
         // Spawning
         spawnTimer += dt;
@@ -346,12 +335,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           spawnItem();
         }
 
-        // Collision logic with 70% hitboxes
-        const basketHitbox = {
-          x: basket.x + BASKET_WIDTH * 0.15,
-          y: basket.y + basket.height * 0.15,
-          w: BASKET_WIDTH * 0.7,
-          h: basket.height * 0.7,
+        // Collision logic (70% hitboxes)
+        const catcherHitbox = {
+          x: catcher.x + CATCHER_WIDTH * 0.15,
+          y: catcher.y + catcher.height * 0.15,
+          w: CATCHER_WIDTH * 0.7,
+          h: catcher.height * 0.7,
         };
 
         for (let i = activeItems.length - 1; i >= 0; i--) {
@@ -359,15 +348,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           item.y += item.speed * currentSpeedMult * slowFactor * dt;
 
           let wobbleX = 0;
-          if (item.name === 'star') {
+          if (item.name === 'green_flag') {
             item.rotation += item.rotationSpeed * slowFactor * dt;
-          } else if (item.name === 'bomb') {
-            item.wobblePhase += dt * 7 * slowFactor;
-            wobbleX = Math.sin(item.wobblePhase) * 10;
-            item.rotation = Math.sin(item.wobblePhase) * 0.15;
+          } else if (item.name === 'red_flag') {
+            item.wobblePhase += dt * 6 * slowFactor;
+            wobbleX = Math.sin(item.wobblePhase) * 9;
+            item.rotation = Math.sin(item.wobblePhase) * 0.12;
 
             // Graze distance tracking
-            const dist = Math.hypot(basket.x + BASKET_WIDTH / 2 - (item.x + item.width / 2 + wobbleX), basket.y - item.y);
+            const dist = Math.hypot(catcher.x + CATCHER_WIDTH / 2 - (item.x + item.width / 2 + wobbleX), catcher.y - item.y);
             if (dist < gameStateRef.current.closestBombGraze && dist > 40) {
               gameStateRef.current.closestBombGraze = Math.round(dist);
             }
@@ -387,13 +376,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           };
 
           const overlap =
-            basketHitbox.x < itemHitbox.x + itemHitbox.w &&
-            basketHitbox.x + basketHitbox.w > itemHitbox.x &&
-            basketHitbox.y < itemHitbox.y + itemHitbox.h &&
-            basketHitbox.y + basketHitbox.h > itemHitbox.y;
+            catcherHitbox.x < itemHitbox.x + itemHitbox.w &&
+            catcherHitbox.x + catcherHitbox.w > itemHitbox.x &&
+            catcherHitbox.y < itemHitbox.y + itemHitbox.h &&
+            catcherHitbox.y + catcherHitbox.h > itemHitbox.y;
 
           if (overlap) {
-            basketSquashTimer = 0.1;
+            catcherSquashTimer = 0.1;
             const cx = visualX + item.width / 2;
             const cy = item.y + item.height / 2;
 
@@ -401,7 +390,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               const pts = item.points * (isDouble ? 2 : 1);
               gameStateRef.current.score += pts;
               sound.playCatch();
-              setSyncMetric((prev) => Math.min(99, prev + 1));
 
               if (images.sparkleBurst) {
                 visualEffects.push({
@@ -415,10 +403,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 });
               }
               floatingTexts.push({
-                text: `+${pts} Rizz`,
+                text: `+${pts}`,
                 x: cx,
                 y: cy,
-                duration: 0.7,
+                duration: 0.65,
                 elapsed: 0,
               });
             } else if (item.type === 'bad') {
@@ -426,7 +414,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               redFlashTimer = 0.2;
               shakeTimer = 0.25;
               sound.playBomb();
-              setSyncMetric((prev) => Math.max(65, prev - 4));
 
               if (images.explosion) {
                 visualEffects.push({
@@ -443,10 +430,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               activePowerUps[item.effect] = {
                 timer: item.duration,
                 maxDuration: item.duration,
-                icon: item.name,
+                iconKey: item.imageKey,
               };
               sound.playPowerUp();
-              setSyncMetric((prev) => Math.min(99, prev + 3));
 
               if (images.sparkleBurst) {
                 visualEffects.push({
@@ -469,7 +455,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           gameStateRef.current.isOver = true;
           isRunning = false;
 
-          // Compute final telemetry
           const early = gameStateRef.current.earlyScore || 10;
           const late = gameStateRef.current.lateScore || 10;
           const asc = Math.max(0.6, Math.min(1.6, late / (early + 5)));
@@ -513,22 +498,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx.translate((Math.random() * 2 - 1) * 8, (Math.random() * 2 - 1) * 8);
       }
 
-      // Draw background
-      if (images.background) {
-        const cw = WORLD_WIDTH;
-        const ch = WORLD_HEIGHT;
-        const iw = images.background.naturalWidth;
-        const ih = images.background.naturalHeight;
-        const scale = Math.max(cw / iw, ch / ih);
-        const rw = iw * scale;
-        const rh = ih * scale;
-        ctx.drawImage(images.background, (cw - rw) / 2, (ch - rh) / 2, rw, rh);
+      // Background
+      if (images.background && images.background.complete) {
+        ctx.drawImage(images.background, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+      } else {
+        ctx.fillStyle = '#0b0b0e';
+        ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
       }
 
-      // Draw items
+      // Items
       for (const item of activeItems) {
-        const img = images[item.name];
-        if (!img) continue;
+        const img = images[item.imageKey];
+        if (!img || !img.complete) continue;
         const cx = item.x + item.width / 2;
         const cy = item.y + item.height / 2;
 
@@ -539,23 +520,22 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx.restore();
       }
 
-      // Draw basket
-      if (images.basket) {
-        const aspect = images.basket.naturalHeight / images.basket.naturalWidth;
-        const baseH = BASKET_WIDTH * aspect;
-        basket.height = baseH;
-        basket.y = WORLD_HEIGHT - 30 - baseH;
+      // Catcher
+      const catcherImg = images.catcher;
+      if (catcherImg && catcherImg.complete) {
+        catcher.height = 54;
+        catcher.y = WORLD_HEIGHT - 32 - catcher.height;
 
-        if (basketSquashTimer > 0) {
-          const sw = BASKET_WIDTH * 1.22;
-          const sh = baseH * 0.78;
-          ctx.drawImage(images.basket, basket.x - (sw - BASKET_WIDTH) / 2, (basket.y + baseH) - sh, sw, sh);
+        if (catcherSquashTimer > 0) {
+          const sw = CATCHER_WIDTH * 1.2;
+          const sh = 54 * 0.8;
+          ctx.drawImage(catcherImg, catcher.x - (sw - CATCHER_WIDTH) / 2, (catcher.y + 54) - sh, sw, sh);
         } else {
-          ctx.drawImage(images.basket, basket.x, basket.y, BASKET_WIDTH, baseH);
+          ctx.drawImage(catcherImg, catcher.x, catcher.y, CATCHER_WIDTH, 54);
         }
       }
 
-      // Draw visual FX
+      // Visual FX
       for (const fx of visualEffects) {
         const p = Math.min(1, fx.elapsed / fx.duration);
         const size = fx.startSize + p * (fx.endSize - fx.startSize);
@@ -566,7 +546,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
 
       if (redFlashTimer > 0) {
-        ctx.fillStyle = 'rgba(255, 45, 85, 0.4)';
+        ctx.fillStyle = 'rgba(225, 29, 72, 0.4)';
         ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
       }
 
@@ -581,36 +561,36 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx.font = 'bold 24px system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         ctx.strokeStyle = '#000000';
         ctx.strokeText(ft.text, ft.x, curY);
-        ctx.fillStyle = '#ffea00';
+        ctx.fillStyle = '#fde047';
         ctx.fillText(ft.text, ft.x, curY);
         ctx.restore();
       }
 
       // Top HUD: Score & Active Powerups
       ctx.save();
-      ctx.font = 'bold 26px system-ui, sans-serif';
+      ctx.font = 'bold 24px system-ui, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 3;
       ctx.strokeStyle = '#000000';
-      ctx.strokeText(`Rizz: ${gameStateRef.current.score}`, 20, 20);
+      ctx.strokeText(`Chemistry: ${gameStateRef.current.score}`, 20, 20);
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(`Rizz: ${gameStateRef.current.score}`, 20, 20);
+      ctx.fillText(`Chemistry: ${gameStateRef.current.score}`, 20, 20);
 
       // Power-up indicators under score
-      let yOffset = 56;
+      let yOffset = 54;
       for (const effect in activePowerUps) {
         const p = activePowerUps[effect];
-        const img = images[p.icon];
-        if (img) {
+        const img = images[p.iconKey];
+        if (img && img.complete) {
           ctx.drawImage(img, 20, yOffset, 24, 24);
           const barW = 50 * (p.timer / p.maxDuration);
-          ctx.fillStyle = effect === 'double' ? '#ffea00' : '#00e5ff';
+          ctx.fillStyle = effect === 'double' ? '#fde047' : '#38bdf8';
           ctx.fillRect(50, yOffset + 8, barW, 8);
-          ctx.strokeStyle = '#ffffff';
+          ctx.strokeStyle = 'rgba(255,255,255,0.4)';
           ctx.lineWidth = 1;
           ctx.strokeRect(50, yOffset + 8, 50, 8);
           yOffset += 30;
@@ -619,22 +599,24 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // Timer (Center)
       const sec = Math.ceil(Math.max(0, gameStateRef.current.timeLeft));
-      if (images.clock) {
-        ctx.drawImage(images.clock, WORLD_WIDTH / 2 - 38, 20, 28, 28);
+      if (images.clock && images.clock.complete) {
+        ctx.drawImage(images.clock, WORLD_WIDTH / 2 - 36, 18, 26, 26);
       }
       ctx.textAlign = 'left';
-      ctx.font = 'bold 24px system-ui, sans-serif';
-      ctx.lineWidth = 4;
+      ctx.font = 'bold 22px system-ui, sans-serif';
+      ctx.lineWidth = 3;
       ctx.strokeStyle = '#000000';
-      ctx.strokeText(`${sec}s`, WORLD_WIDTH / 2 - 4, 22);
-      ctx.fillStyle = sec <= 10 ? '#ff2d55' : '#ffffff';
-      ctx.fillText(`${sec}s`, WORLD_WIDTH / 2 - 4, 22);
+      ctx.strokeText(`${sec}s`, WORLD_WIDTH / 2 - 4, 20);
+      ctx.fillStyle = sec <= 10 ? '#f43f5e' : '#ffffff';
+      ctx.fillText(`${sec}s`, WORLD_WIDTH / 2 - 4, 20);
 
       // Lives (Hearts top-right)
       if (images.heart && images.heartEmpty) {
         for (let i = 0; i < 3; i++) {
           const hImg = i < gameStateRef.current.lives ? images.heart : images.heartEmpty;
-          ctx.drawImage(hImg, WORLD_WIDTH - 120 + i * 32, 20, 28, 28);
+          if (hImg.complete) {
+            ctx.drawImage(hImg, WORLD_WIDTH - 110 + i * 30, 20, 24, 24);
+          }
         }
       }
 
@@ -659,47 +641,45 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [onGameOver]);
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center bg-[#0b0b0e] select-none touch-none">
-      {/* Top Telemetry Radar Bar */}
-      <div className="absolute top-2 z-20 flex items-center justify-between w-full max-w-[450px] px-4 py-1 text-xs glass-panel rounded-full border border-white/10 shadow-lg">
-        <div className="flex items-center space-x-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-          <span className="text-emerald-400 font-medium">{activeDaterCount} Daters Online</span>
-        </div>
+    <div className="relative w-full h-full flex flex-col items-center justify-center bg-[#0c0c10] select-none touch-none rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+      {/* Top Status Bar (De-AI-Slopped: Clean, minimal, no pulsating green hacker vibes) */}
+      <div className="absolute top-3 z-20 flex items-center justify-between w-full max-w-[430px] px-4 py-1.5 text-xs bg-zinc-900/80 backdrop-blur-md rounded-full border border-white/10 shadow-lg text-zinc-300">
         <div className="flex items-center space-x-2">
-          <span className="text-white/60">Sync Frequency:</span>
-          <span className="text-[#ff2d55] font-bold">{syncMetric}%</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+          <span className="font-medium text-white/90">{activeDaterCount} daters online</span>
+        </div>
+        <div className="flex items-center space-x-3">
           <button
             onClick={toggleMute}
-            className="p-1 rounded-full hover:bg-white/10 transition text-white/80"
-            title="Toggle Audio"
+            className="p-1 rounded-full hover:bg-white/10 transition text-zinc-400 hover:text-white"
+            title="Toggle Mute (M)"
           >
-            {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+            {isMuted ? <VolumeX className="w-4 h-4 text-zinc-500" /> : <Volume2 className="w-4 h-4 text-zinc-300" />}
           </button>
           <button
             onClick={togglePause}
-            className="p-1 rounded-full hover:bg-white/10 transition text-white/80"
-            title="Pause Game (P)"
+            className="p-1 rounded-full hover:bg-white/10 transition text-zinc-400 hover:text-white"
+            title="Pause (P)"
           >
-            {isPaused ? <Play className="w-4 h-4 text-amber-400" /> : <Pause className="w-4 h-4 text-white/80" />}
+            {isPaused ? <Play className="w-4 h-4 text-rose-400" /> : <Pause className="w-4 h-4 text-zinc-300" />}
           </button>
         </div>
       </div>
 
       {/* Main Canvas Viewport */}
       <div className="relative flex items-center justify-center w-full h-full max-w-[450px] max-h-[800px]">
-        <canvas id="game-canvas" ref={canvasRef} className="block shadow-2xl rounded-xl touch-none" />
+        <canvas id="game-canvas" ref={canvasRef} className="block touch-none" />
 
         {/* Pause Overlay */}
         {isPaused && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/75 backdrop-blur-sm rounded-xl">
-            <h2 className="text-3xl font-black text-white glow-pink tracking-wider">PAUSED</h2>
-            <p className="mt-2 text-sm text-[#ffea00] font-medium">Press P or click Resume to continue</p>
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm">
+            <h2 className="text-2xl font-black text-white tracking-widest uppercase">Paused</h2>
+            <p className="mt-2 text-xs text-zinc-400">Press P or click resume</p>
             <button
               onClick={togglePause}
-              className="mt-6 px-6 py-2.5 rounded-full bg-gradient-to-r from-[#ff2d55] to-[#ff375f] font-bold text-white shadow-lg shadow-pink-500/30 hover:scale-105 active:scale-95 transition"
+              className="mt-5 px-6 py-2.5 rounded-full bg-rose-600 hover:bg-rose-500 font-bold text-white text-xs uppercase tracking-wider transition shadow-lg"
             >
-              Resume Dating
+              Resume
             </button>
           </div>
         )}
